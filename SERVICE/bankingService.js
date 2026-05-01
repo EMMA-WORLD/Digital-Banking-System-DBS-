@@ -6,21 +6,19 @@ const AppError = require('../UTILS/AppError');
 const { HTTP_STATUS, ERROR_MESSAGES, CURRENCIES, ACCOUNT_STATUS } = require('../CONFIG/constants');
 
 exports.createAccount = async (user, body) => {
+  // Check if KYC is verified
+  if (!user.kycVerified) {
+    throw new AppError('KYC verification required before creating account', HTTP_STATUS.BAD_REQUEST);
+  }
+
   const existingAccount = await Account.findOne({
-  customerId: new mongoose.Types.ObjectId(user._id)
+  userId: user._id
 });
   if (existingAccount) {
     throw new AppError(ERROR_MESSAGES.DUPLICATE_ACCOUNT, HTTP_STATUS.CONFLICT, { accountNumber: existingAccount.accountNumber });
   }
 
-  // Validate BVN before creating account
-  const bvnValidation = await nibssService.validateBVN(body.bvn, user._id);
-
-  if (!bvnValidation?.valid) {
-    throw new AppError('Invalid BVN provided', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  const nibssAccount = await nibssService.createAccount(body.kycType, body.kycID, body.dob, user._id);
+  const nibssAccount = await nibssService.createAccount(user.kycType, user.kycID, user.dob, user._id);
   const acctData = normalizeAccount(nibssAccount, body);
 
   if (!acctData?.accountNumber) {
@@ -31,7 +29,7 @@ exports.createAccount = async (user, body) => {
 
   try {
     account = await Account.create({
-      customerId: user._id,
+      userId: user._id,
       accountNumber: acctData.accountNumber,
       accountName: acctData.accountName || `${user.firstName} ${user.lastName}`,
       bankCode: acctData.bankCode,
@@ -61,7 +59,7 @@ exports.transfer = async ({ user, body, ipAddress, userAgent, idempotencyKey }) 
   transactionService.executeTransfer({ user, payload: body, ipAddress, userAgent, idempotencyKey });
 
 exports.getMyAccounts = async (userId) =>
-  Account.find({ customerId: userId });
+  Account.find({ userId });
 
 exports.getTransactionHistory = async (userId) =>
   transactionService.getTransactionHistory(userId);

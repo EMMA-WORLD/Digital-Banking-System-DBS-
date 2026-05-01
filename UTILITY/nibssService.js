@@ -36,7 +36,7 @@ const nibssService = {
   // --- Account -------------------------------------------------------------
 
   /**
-   * Create a customer account on NIBSS.
+   * Create a user account on NIBSS.
    * @returns {{ accountNumber, bankCode, bankName, balance }}
    */
   async createAccount(kycType, kycID, dob, userId = null) {

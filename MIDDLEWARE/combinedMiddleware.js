@@ -76,7 +76,7 @@ class CombinedMiddleware {
 
     // Attach user to request
     req.user = user;
-    req.userId = decoded.userId;
+    req.user._id = decoded.userId;
   };
 
   // NIBSS authentication
@@ -102,7 +102,7 @@ class CombinedMiddleware {
       }
 
       // Validate BVN with NIBSS
-      const bvnResponse = await nibssService.validateBVN(bvn, req.userId);
+      const bvnResponse = await nibssService.validateBVN(bvn, req.user._id);
 
       if (!bvnResponse || !bvnResponse.valid) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -139,7 +139,7 @@ class CombinedMiddleware {
       }
 
       // Perform name enquiry
-      const nameEnquiryResponse = normalizeAccount(await nibssService.nameEnquiry(recipientAccount, req.userId));
+      const nameEnquiryResponse = normalizeAccount(await nibssService.nameEnquiry(recipientAccount, req.user._id));
 
       if (!nameEnquiryResponse || !nameEnquiryResponse.accountName) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -155,14 +155,14 @@ class CombinedMiddleware {
         type: TRANSACTION_TYPES.TRANSFER,
         amount: amount,
         description: description || 'Transfer',
-        senderId: req.userId,
+        senderId: req.user._id,
         senderAccount: req.user.accounts?.[0] || 'N/A', // Assuming first account
         senderName: `${req.user.firstName} ${req.user.lastName}`,
         recipientAccount: recipientAccount,
         recipientName: nameEnquiryResponse.accountName,
         recipientBank: nameEnquiryResponse.bankName || 'Same Bank',
         status: TRANSACTION_STATUS.PENDING,
-        initiatedBy: req.userId,
+        initiatedBy: req.user._id,
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
         metadata: {
@@ -250,13 +250,13 @@ class CombinedMiddleware {
             type: TRANSACTION_TYPES.DEPOSIT, // Account creation can be treated as initial deposit
             amount: 0, // Initial balance
             description: 'Account creation',
-            senderId: req.userId,
+            senderId: req.user._id,
             senderAccount: 'SYSTEM',
             senderName: 'System',
             recipientAccount: responseData.accountNumber || req.body.accountNumber,
             recipientName: `${req.user.firstName} ${req.user.lastName}`,
             status: TRANSACTION_STATUS.SUCCESSFUL,
-            initiatedBy: req.userId,
+            initiatedBy: req.user._id,
             ipAddress: req.ip,
             userAgent: req.get('User-Agent'),
             nibssResponse: responseData,

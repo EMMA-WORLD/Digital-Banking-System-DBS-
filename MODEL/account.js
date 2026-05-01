@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const accountSchema = new mongoose.Schema(
   {
-    customerId: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Customer',
+      ref: 'User',
       required: true,
-      unique: true, // one account per customer
+      unique: true, // one account per user
     },
     accountNumber: {
       type: String,

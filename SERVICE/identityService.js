@@ -3,16 +3,17 @@ const BVN = require('../MODEL/bvn');
 const NIN = require('../MODEL/nin');
 const AppError = require('../UTILS/AppError');
 const nibssService = require('../UTILITY/nibssService');
+const kycService = require('./kycService');
 const { unwrapNibss } = require('../UTILITY/nibssHelpers');
 const { HTTP_STATUS, KYC_STATUS, VERIFICATION_STATUS } = require('../CONFIG/constants');
 
 exports.verifyBVN = async (user, bvn) => {
-  const response = await nibssService.validateBVN(bvn, user._id);
+  const response = await kycService.validateBVN(bvn, user._id);
   return unwrapNibss(response);
 };
 
 exports.verifyNIN = async (user, nin) => {
-  const response = await nibssService.validateNIN(nin, user._id);
+  const response = await kycService.validateNIN(nin, user._id);
   return unwrapNibss(response);
 };
 

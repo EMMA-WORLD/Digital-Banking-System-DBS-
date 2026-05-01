@@ -1,12 +1,13 @@
 const User = require('../MODEL/users');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../CONFIG/jwt');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken, sendTokenResponse } = require('../CONFIG/jwt');
 const { HTTP_STATUS, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../CONFIG/constants');
 const crypto = require('crypto');
+const kycService = require('../SERVICE/kycService');
 
 // Register a new user
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, password, dateOfBirth, gender } = req.body;
+    const { firstName, lastName, email, phone, password, dob, gender } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -27,7 +28,7 @@ exports.register = async (req, res) => {
       email,
       phone,
       password,
-      dateOfBirth,
+      dob,
       gender,
     });
 
@@ -250,7 +251,7 @@ exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.userId).select('+password');
+    const user = await User.findById(req.user._id).select('+password');
 
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
     if (!isCurrentPasswordValid) {
@@ -294,25 +295,24 @@ exports.logout = async (req, res) => {
   }
 };
 
-exports.register = async (req, res, next) => {
+/**
+ * POST /api/auth/verify-kyc
+ * Verifies user's KYC using BVN or NIN after login
+ */
+exports.verifyKyc = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, phone, password, dob, kycType, kycID } = req.body;
+    const { kycType, kycID, dob } = req.body;
+    const user = await User.findById(req.user._id);
 
-    // Reject if email already used
-    const existing = await Customer.findOne({ email });
-    if (existing) {
-      return res.status(409).json({ message: 'Email already registered.' });
+    // Check if already verified
+    if (user.kycVerified) {
+      return res.status(400).json({ message: 'KYC already verified.' });
     }
 
     // ── KYC Verification via NIBSS ────────────────────────────────────────────
-    const requestUserId = req.user?._id || null;
     let kycData;
     try {
-      if (kycType === 'bvn') {
-        kycData = await nibssService.validateBVN(kycID, requestUserId);
-      } else {
-        kycData = await nibssService.validateNIN(kycID, requestUserId);
-      }
+      kycData = await kycService.verifyKyc(kycType, kycID, user._id);
     } catch (nibssErr) {
       return res.status(400).json({
         message: `KYC validation failed: ${nibssErr.response?.data?.message || nibssErr.message}`,
@@ -323,11 +323,11 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ message: `${kycType.toUpperCase()} not found in NIBSS records.` });
     }
 
-    // Cross-check name and DOB returned from NIBSS against what customer supplied
+    // Cross-check name and DOB returned from NIBSS against what user supplied
     const nibssFirst = (kycData.firstName || '').toLowerCase().trim();
     const nibssLast = (kycData.lastName || '').toLowerCase().trim();
-    const suppliedFirst = firstName.toLowerCase().trim();
-    const suppliedLast = lastName.toLowerCase().trim();
+    const suppliedFirst = user.firstName.toLowerCase().trim();
+    const suppliedLast = user.lastName.toLowerCase().trim();
 
     if (nibssFirst !== suppliedFirst || nibssLast !== suppliedLast) {
       return res.status(400).json({
@@ -341,45 +341,26 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // ── Create Customer ───────────────────────────────────────────────────────
-    const customer = await Customer.create({
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      dob,
-      kycType,
-      kycID,
-      kycVerified: true,
-      onboardingStatus: 'verified',
+    // Update user with KYC info
+    user.dob = dob;
+    user.kycType = kycType;
+    user.kycID = kycID;
+    user.kycVerified = true;
+    await accountService.createAccount(user);
+    user.onboardingStatus = 'verified';
+    await user.save();
+
+    res.status(200).json({
+      message: 'KYC verification successful. You can now create your bank account.',
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        kycVerified: user.kycVerified,
+        onboardingStatus: user.onboardingStatus,
+      },
     });
-
-    sendTokenResponse(customer, 201, res, {
-      message: 'Registration successful. Please create your bank account to complete onboarding.',
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * POST /api/auth/login
- */
-exports.login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    const customer = await Customer.findOne({ email }).select('+password');
-    if (!customer || !(await customer.comparePassword(password))) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
-    }
-
-    if (!customer.isActive) {
-      return res.status(403).json({ message: 'Account has been deactivated.' });
-    }
-
-    sendTokenResponse(customer, 200, res, { message: 'Login successful.' });
   } catch (err) {
     next(err);
   }
@@ -387,8 +368,8 @@ exports.login = async (req, res, next) => {
 
 /**
  * GET /api/auth/me
- * Returns the currently authenticated customer's profile.
+ * Returns the currently authenticated user's profile.
  */
 exports.getMe = async (req, res) => {
-  res.json({ customer: req.customer });
+  res.json({ user: req.user });
 };

@@ -50,11 +50,11 @@ const decodeToken = (token) => {
   return jwt.decode(token);
 };
 
-const sendTokenResponse = (customer, statusCode, res, extraData = {}) => {
-  const token = signToken(customer._id);
+const sendTokenResponse = (user, statusCode, res, extraData = {}) => {
+  const token = generateAccessToken(user._id, user.email);
   res.status(statusCode).json({
     token,
-    customer,
+    user,
     ...extraData,
   });
 };
@@ -65,4 +65,5 @@ module.exports = {
   verifyAccessToken,
   verifyRefreshToken,
   decodeToken,
+  sendTokenResponse,
 };

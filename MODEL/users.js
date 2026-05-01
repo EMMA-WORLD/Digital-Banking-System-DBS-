@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
         message: 'Please provide a valid phone number',
       },
     },
-    dateOfBirth: {
+    dob: {
       type: Date,
       required: [true, 'Date of birth is required'],
     },

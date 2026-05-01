@@ -17,7 +17,7 @@ const buildTransferPayload = ({ senderAccount, recipientAccount, amount, currenc
 });
 
 exports.executeTransfer = async ({ user, payload, ipAddress, userAgent, idempotencyKey = null }) => {
-  const senderAccount = await Account.findOne({ customerId: user._id });
+  const senderAccount = await Account.findOne({ userId: user._id });
   if (!senderAccount) {
     throw new AppError(ERROR_MESSAGES.ACCOUNT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }

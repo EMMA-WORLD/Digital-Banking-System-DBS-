@@ -24,6 +24,8 @@ router.post('/request-password-reset', validatePasswordReset, handleValidationEr
 router.post('/reset-password', validateNewPassword, handleValidationErrors, authController.resetPassword);
 
 // Protected routes
+router.post('/verify-kyc', protect, authController.verifyKyc);
+
 router.post('/change-password', protect, validateChangePassword, handleValidationErrors, authController.changePassword);
 
 router.post('/logout', protect, authController.logout);
