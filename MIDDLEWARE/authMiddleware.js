@@ -47,7 +47,7 @@ exports.protect = async (req, res, next) => {
 
     // Grant access to protected route
     req.user = user;
-    req.userId = decoded.userId;
+    req.user._id = decoded.userId;
     next();
   } catch (error) {
     console.error('Auth protection error:', error);
