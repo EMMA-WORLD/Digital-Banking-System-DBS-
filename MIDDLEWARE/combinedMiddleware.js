@@ -156,8 +156,8 @@ class CombinedMiddleware {
         amount: amount,
         description: description || 'Transfer',
         senderId: req.user._id,
-        senderAccount: req.user.accounts?.[0] || 'N/A', // Assuming first account
-        senderName: `${req.user.firstName} ${req.user.lastName}`,
+        senderAccount: req.user._id.accounts?.[0] || 'N/A', // Assuming first account
+        senderName: `${req.user._id.firstName} ${req.user._id.lastName}`,
         recipientAccount: recipientAccount,
         recipientName: nameEnquiryResponse.accountName,
         recipientBank: nameEnquiryResponse.bankName || 'Same Bank',
@@ -254,7 +254,7 @@ class CombinedMiddleware {
             senderAccount: 'SYSTEM',
             senderName: 'System',
             recipientAccount: responseData.accountNumber || req.body.accountNumber,
-            recipientName: `${req.user.firstName} ${req.user.lastName}`,
+            recipientName: `${req.user._id.firstName} ${req.user._id.lastName}`,
             status: TRANSACTION_STATUS.SUCCESSFUL,
             initiatedBy: req.user._id,
             ipAddress: req.ip,

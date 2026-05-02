@@ -1,3 +1,4 @@
+const { validationResult } = require('express-validator');
 const User = require('../MODEL/users');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, sendTokenResponse } = require('../CONFIG/jwt');
 const { HTTP_STATUS, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../CONFIG/constants');
@@ -8,6 +9,11 @@ const kycService = require('../SERVICE/kycService');
 exports.register = async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password, dob, gender } = req.body;
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, errors: errors.array() });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -371,5 +377,5 @@ exports.verifyKyc = async (req, res, next) => {
  * Returns the currently authenticated user's profile.
  */
 exports.getMe = async (req, res) => {
-  res.json({ user: req.user });
+  res.json({ user: req.user._id });
 };

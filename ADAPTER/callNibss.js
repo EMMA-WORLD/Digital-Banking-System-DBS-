@@ -1,61 +1,108 @@
-const nibssClient = require('../CONFIG/nibssAdapter');
-const AuditLog = require('../MODEL/AuditLog');
-const { AUDIT_STATUS } = require('../CONFIG/constants');
-const { loginToNibss } = require('../UTILITY/nibssAuth');
+const axios = require('axios');
 
-module.exports = async function callNibss({
+const callNibss = async ({
   operationType,
   route,
-  method = 'post',
+  method = 'get',
   payload = {},
   userId = null,
   transactionId = null,
   meta = {},
-}) {
-  let log;
+}) => {
+  const baseURL = process.env.NIBSS_BASE_URL;
+
+  if (!baseURL) {
+    throw new Error('NIBSS_BASE_URL is not configured');
+  }
+
+  // 🔐 Build headers
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.NIBSS_API_KEY,
+  };
+
+  if (userId) headers['x-user-id'] = userId.toString();
+  if (transactionId) headers['x-transaction-id'] = transactionId.toString();
+  if (meta?.idempotencyKey) headers['Idempotency-Key'] = meta.idempotencyKey;
+
+  // ✅ FIX 1: define BEFORE use
+  const normalizedMethod = method.toLowerCase();
 
   try {
-    if (!global.nibssToken && route !== '/api/auth/token') {
-      await loginToNibss();
-    }
-
-    log = await AuditLog.create({
-      userId,
-      transactionId,
-      operationType,
-      route,
-      method: method.toUpperCase(),
-      payload,
-      status: AUDIT_STATUS.PENDING,
-      meta,
-    });
-
-    const response = await nibssClient({
-      method,
+    // ✅ FIX 2: proper config block
+    const config = {
       url: route,
-      data: payload,
+      method: normalizedMethod,
+      baseURL,
+      headers,
+      timeout: 15000,
+    };
+
+    // ✅ FIX 3: attach payload correctly
+    if (normalizedMethod === 'get') {
+      config.params = payload;
+    } else {
+      config.data = payload;
+    }
+
+    // ✅ Logging
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔄 NIBSS REQUEST:', {
+        operationType,
+        method: normalizedMethod,
+        url: `${baseURL}${route}`,
+        payload,
+      });
+    }
+
+    const response = await axios(config);
+
+    return {
+      success: true,
+      data: response.data,
+      status: response.status,
+      operationType,
+    };
+  } catch (error) {
+    // ✅ FIX 4: define errResponse
+    const errResponse = error.response;
+
+    // ✅ FIX 5: timeout handling FIRST
+    if (error.code === 'ECONNABORTED') {
+      return {
+        success: false,
+        status: 504,
+        operationType,
+        error: {
+          message: 'NIBSS request timeout',
+          data: null,
+        },
+      };
+    }
+
+    const isNetworkError = !errResponse;
+
+    console.error('❌ NIBSS ERROR:', {
+      operationType,
+      method: normalizedMethod,
+      url: `${baseURL}${route}`,
+      error: errResponse?.data || error.message,
     });
 
-    log.status = AUDIT_STATUS.SUCCESS;
-    log.response = response.data;
-    log.externalReferenceId = response.data?.reference || response.data?.transactionId || null;
-
-    await log.save();
-
-    return response;
-  } catch (error) {
-    if (log) {
-      log.status = AUDIT_STATUS.FAILED;
-      log.errorMessage = error.message;
-      log.response = error.response?.data || null;
-      await log.save();
-    }
-
-    if (error.response?.status === 401 && route !== '/api/auth/token') {
-      global.nibssToken = null;
-    }
-
-    throw error;
+    return {
+      success: false,
+      status: isNetworkError ? 503 : errResponse?.status || 500,
+      operationType,
+      error: {
+        message:
+          errResponse?.data?.message ||
+          errResponse?.data?.error ||
+          error.message ||
+          'NIBSS request failed',
+        data: errResponse?.data || null,
+      },
+    };
   }
 };
 
+module.exports = callNibss;

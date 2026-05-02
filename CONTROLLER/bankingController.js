@@ -1,7 +1,13 @@
+const { validationResult } = require('express-validator');
 const bankingService = require('../SERVICE/bankingService');
 const { HTTP_STATUS } = require('../CONFIG/constants');
 
 exports.createAccount = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, errors: errors.array() });
+  }
+
   try {
     const account = await bankingService.createAccount(req.user, req.body);
     res.status(HTTP_STATUS.CREATED).json({ success: true, data: account });

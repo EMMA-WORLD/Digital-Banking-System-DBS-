@@ -34,7 +34,7 @@ exports.validateUserRegistration = [
     .withMessage('Confirm password is required')
     .custom((value, { req }) => value === req.body.password)
     .withMessage('Passwords do not match'),
-  body('dateOfBirth').notEmpty().withMessage('Date of birth is required').isISO8601().withMessage('Valid date is required'),
+  body('dob').notEmpty().withMessage('Date of birth is required').isISO8601().withMessage('Valid date is required'),
   body('gender').notEmpty().withMessage('Gender is required').isIn(['Male', 'Female', 'Other']).withMessage('Invalid gender'),
 ];
 
