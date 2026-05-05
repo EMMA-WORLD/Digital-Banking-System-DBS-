@@ -80,6 +80,7 @@ exports.apiLimiter = rateLimit({
 // Global error handler
 exports.errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
+  
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {

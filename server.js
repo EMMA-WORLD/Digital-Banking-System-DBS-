@@ -1,63 +1,67 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const path = require('path');
-const connectDB = require('./CONFIG/database');
-const { errorHandler, apiLimiter } = require('./MIDDLEWARE/authMiddleware');
 
-// Load environment variables
 dotenv.config();
 
-// Connect to database
-connectDB();
+const connectDB = require('./CONFIG/database');
+const { errorHandler } = require('./MIDDLEWARE/authMiddleware');
+
+// Routes
+const bankingRoutes = require('./ROUTES/bankingRoutes');
+const authRoutes = require('./ROUTES/AuthRoutes');
+const identityRoutes = require('./ROUTES/identityRoutes');
+const databaseRoutes = require('./ROUTES/databaseRoutes');
+const webhookRoutes = require('./ROUTES/webhookRoutes');
 
 const app = express();
+
+app.use((req, res, next) => {
+  console.log("➡️ REQUEST:", req.method, req.originalUrl);
+  next();
+});
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'PUBLIC')));
-
-// Rate limiting
-app.use('/api/', apiLimiter);
+// Routes
+app.use('/api/banking', bankingRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/identity', identityRoutes);
+app.use('/api/database', databaseRoutes);
+app.use('/webhook', webhookRoutes);
 
 // Health check
 app.get('/', (req, res) => {
-  res.status(200).json({
+  res.json({
     success: true,
     message: 'Digital Banking System API is running',
     timestamp: new Date().toISOString(),
   });
 });
 
-const bankingRoutes = require('./ROUTES/bankingRoutes');
-const authRoutes = require('./ROUTES/AuthRoutes');
-const identityRoutes = require('./ROUTES/identityRoutes');
-const webhookRoutes = require('./ROUTES/webhookRoutes');
-const databaseRoutes = require('./ROUTES/databaseRoutes');
-
-app.use('/api/banking', bankingRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api', identityRoutes);
-app.use('/api/database', databaseRoutes);
-app.use('/webhook', webhookRoutes);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-  });
-});
-
-// Error handling middleware
+// Error handler LAST
 app.use(errorHandler);
 
-// Start server
-const PORT = process.env.PORT
-app.listen(PORT, () => {
-  console.log(`🚀 Digital Banking System Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📱 Fintech Login Page: http://localhost:${PORT}/fintech-login`);
-});
+const PORT = process.env.PORT || 5000;
+
+// START SERVER ONLY AFTER DB CONNECTS
+async function startServer() {
+  try {
+    await connectDB();
+    console.log('🟢 MongoDB connected');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Digital Banking System Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📱 Fintech Login Page: http://localhost:${PORT}/fintech-login`);
+  
+    });
+
+  } catch (err) {
+    console.error('❌ DB failed:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

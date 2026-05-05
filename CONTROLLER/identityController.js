@@ -1,5 +1,5 @@
 const identityService = require('../SERVICE/identityService');
-const { HTTP_STATUS } = require('../CONFIG/constants');
+const { HTTP_STATUS, ERROR_MESSAGES  } = require('../CONFIG/constants');
 
 exports.insertBVN = async (req, res, next) => {
   try {
@@ -24,14 +24,23 @@ exports.insertBVN = async (req, res, next) => {
 
 exports.insertNIN = async (req, res, next) => {
   try {
-    if (!req.body.nin || req.body.nin.length < 11) {
+    if (!req.user) {
+  return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+    success: false,
+    message: ERROR_MESSAGES.UNAUTHORIZED,
+  });
+}
+
+    const { nin } = req.body;
+
+    if (!nin || !/^\d{11}$/.test(nin)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid NIN format',
+        message: 'NIN must be exactly 11 digits',
       });
     }
 
-    const record = await identityService.insertNIN(req.user, req.body);
+    const record = await identityService.insertNIN(req.user, { nin });
 
     res.status(HTTP_STATUS.CREATED).json({
       success: true,

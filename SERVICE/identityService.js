@@ -18,6 +18,11 @@ exports.verifyNIN = async (user, nin) => {
 };
 
 exports.insertBVN = async (user, body) => {
+  const existingBVN = await BVN.findOne({ bvnNumber: body.bvn });
+
+if (existingBVN && existingBVN.user.toString() !== user._id.toString()) {
+  throw new AppError('BVN already linked to another user', HTTP_STATUS.CONFLICT);
+}
   const record = await BVN.findOneAndUpdate(
     { bvnNumber: body.bvn },
     {
@@ -57,19 +62,23 @@ exports.insertBVN = async (user, body) => {
 };
 
 exports.insertNIN = async (user, body) => {
+  const existingNIN = await NIN.findOne({ ninNumber: body.nin });
+
+if (existingNIN && existingNIN.user.toString() !== user._id.toString()) {
+  throw new AppError('NIN already linked to another user', HTTP_STATUS.CONFLICT);
+}
   const record = await NIN.findOneAndUpdate(
-    { ninNumber: body.nin },
-    {
-      user: user._id,
-      ninNumber: body.nin,
-      firstName: body.firstName,
-      lastName: body.lastName,
-      dob: body.dob,
-      nibssResponse: null,
-      status: VERIFICATION_STATUS.PENDING,
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+  { user: user._id },
+  {
+    ninNumber: body.nin,
+    firstName: body.firstName,
+    lastName: body.lastName,
+    dob: body.dob,
+    nibssResponse: null,
+    status: VERIFICATION_STATUS.PENDING,
+  },
+  { upsert: true, new: true, setDefaultsOnInsert: true }
+);
 
   let response;
   try {

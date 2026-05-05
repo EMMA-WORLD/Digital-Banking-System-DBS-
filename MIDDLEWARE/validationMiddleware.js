@@ -135,17 +135,6 @@ exports.validatePayment = [
   body('category').notEmpty().withMessage('Category is required').isIn(['bill', 'transfer', 'loan', 'investment', 'education', 'healthcare', 'shopping', 'entertainment', 'subscription', 'other']).withMessage('Invalid category'),
 ];
 
-// Loan Application Validation
-exports.validateLoanApplication = [
-  body('loanType').notEmpty().withMessage('Loan type is required').isIn(['personal', 'business', 'auto', 'home', 'education', 'emergency', 'salary_advance']).withMessage('Invalid loan type'),
-  body('loanAmount')
-    .notEmpty()
-    .withMessage('Loan amount is required')
-    .isFloat({ min: 1000, max: 100000000 })
-    .withMessage('Loan amount must be between 1000 and 100000000'),
-  body('loanTerm').notEmpty().withMessage('Loan term is required').isInt({ min: 1, max: 360 }).withMessage('Loan term must be between 1 and 360'),
-  body('purpose').trim().notEmpty().withMessage('Purpose is required').isLength({ min: 5 }).withMessage('Purpose must be at least 5 characters'),
-];
 
 // OTP Validation
 exports.validateOTP = [

@@ -12,13 +12,18 @@ const {
 } = require('../MIDDLEWARE/validationMiddleware');
 const { protect } = require('../MIDDLEWARE/authMiddleware');
 
-router.post('/insertbvn', protect, validateInsertBVN, handleValidationErrors, identityController.insertBVN);
-router.post('/insertnin', protect, validateInsertNIN, handleValidationErrors, identityController.insertNIN);
-router.get('/mybvn', protect, identityController.getMyBVN);
-router.get('/mynin', protect, identityController.getMyNIN);
+router.use((req, res, next) => {
+  console.log("🔥 IDENTITY ROUTE HIT:", req.originalUrl);
+  next();
+});
 
-router.post('/verify-bvn', protect, validateBVNVerification, handleValidationErrors, identityController.verifyBVN);
-router.post('/verify-nin', protect, validateNINVerification, handleValidationErrors, identityController.verifyNIN);
-router.post('/business-account', protect, validateBusinessAccountCreation, handleValidationErrors, identityController.createBusinessAccount);
+router.post('/insertbvn', validateInsertBVN, handleValidationErrors, identityController.insertBVN);
+router.post('/insertnin', validateInsertNIN, handleValidationErrors, identityController.insertNIN);
+router.get('/mybvn', identityController.getMyBVN);
+router.get('/mynin', identityController.getMyNIN);
+
+router.post('/verify-bvn', validateBVNVerification, handleValidationErrors, identityController.verifyBVN);
+router.post('/verify-nin', validateNINVerification, handleValidationErrors, identityController.verifyNIN);
+router.post('/business-account', validateBusinessAccountCreation, handleValidationErrors, identityController.createBusinessAccount);
 
 module.exports = router;
